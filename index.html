@@ -5,114 +5,134 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Barnes-Hut N-Body Simulation</title>
     <style>
-        body {
+        html, body {
             margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
             overflow: hidden;
             background-color: #000;
-            color: #fff;
+        }
+        body {
             font-family: Arial, sans-serif;
         }
         canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
             display: block;
+            background-color: #000;
         }
         #controls {
             position: absolute;
             top: 10px;
-            right: 10px;
-            background-color: rgba(0, 0, 0, 0.7);
-            padding: 10px;
-            border-radius: 5px;
-            z-index: 100;
-        }
-        #controls button {
-            margin: 5px;
-            padding: 5px 10px;
-            background-color: #444;
-            color: white;
-            border: none;
-            border-radius: 3px;
-            cursor: pointer;
-        }
-        #controls button:hover {
-            background-color: #666;
-        }
-        #stats {
-            position: absolute;
-            top: 10px;
             left: 10px;
-            background-color: rgba(0, 0, 0, 0.7);
+            color: white;
+            background-color: rgba(0, 0, 0, 0.5);
             padding: 10px;
             border-radius: 5px;
-            z-index: 100;
         }
-        #settings {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            background-color: rgba(0, 0, 0, 0.9);
-            padding: 20px;
-            border-radius: 5px;
-            z-index: 200;
-            display: none;
+        .control-group {
+            margin-bottom: 10px;
         }
-        .setting {
-            margin: 10px 0;
+        button {
+            background-color: #4CAF50;
+            border: none;
+            color: white;
+            padding: 5px 10px;
+            text-align: center;
+            text-decoration: none;
+            display: inline-block;
+            font-size: 14px;
+            margin: 2px 2px;
+            cursor: pointer;
+            border-radius: 3px;
         }
         label {
+            margin-right: 10px;
+        }
+        #fps {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            color: white;
+            background-color: rgba(0, 0, 0, 0.5);
+            padding: 5px;
+            border-radius: 3px;
+        }
+        #settings-panel {
+            position: absolute;
+            top: 50px;
+            right: 10px;
+            color: white;
+            background-color: rgba(0, 0, 0, 0.7);
+            padding: 10px;
+            border-radius: 5px;
+            display: none;
+        }
+        input[type="range"] {
+            width: 100%;
+        }
+        .settings-row {
+            margin-bottom: 8px;
+        }
+        .settings-row label {
             display: inline-block;
-            width: 150px;
+            width: 120px;
         }
     </style>
 </head>
 <body>
-    <canvas id="canvas"></canvas>
-    
-    <div id="stats">
-        <div>FPS: <span id="fps">0</span></div>
-        <div>Bodies: <span id="bodyCount">0</span></div>
-        <div>Quadtree Nodes: <span id="nodeCount">0</span></div>
-    </div>
-    
+    <canvas id="simulation"></canvas>
+    <div id="fps">FPS: 0</div>
     <div id="controls">
-        <button id="pauseBtn">Pause</button>
-        <button id="settingsBtn">Settings</button>
-        <button id="resetBtn">Reset</button>
+        <div class="control-group">
+            <button id="pauseBtn">Pause</button>
+            <button id="resetBtn">Reset</button>
+            <button id="settingsBtn">Settings</button>
+        </div>
+        <div class="control-group">
+            <label><input type="checkbox" id="showBodies" checked> Show Bodies</label>
+            <label><input type="checkbox" id="showQuadtree"> Show Quadtree</label>
+        </div>
+        <div>
+            <p>Particles: <span id="particleCount">0</span></p>
+            <p>Instructions:</p>
+            <ul>
+                <li>Scroll to zoom</li>
+                <li>Drag to pan</li>
+                <li>Right-click to create particles</li>
+                <li>Hold right-click and move in circles to increase mass</li>
+            </ul>
+        </div>
+    </div>
+    <div id="settings-panel">
+        <h3>Simulation Settings</h3>
+        <div class="settings-row">
+            <label for="particleSlider">Particles:</label>
+            <input type="range" id="particleSlider" min="100" max="10000" value="1000">
+            <span id="particleValue">1000</span>
+        </div>
+        <div class="settings-row">
+            <label for="thetaSlider">Theta:</label>
+            <input type="range" id="thetaSlider" min="0.1" max="2" step="0.1" value="0.5">
+            <span id="thetaValue">0.5</span>
+        </div>
+        <div class="settings-row">
+            <label for="dtSlider">Time Step:</label>
+            <input type="range" id="dtSlider" min="0.001" max="0.1" step="0.001" value="0.01">
+            <span id="dtValue">0.01</span>
+        </div>
+        <button id="applySettings">Apply</button>
     </div>
     
-    <div id="settings">
-        <h2>Settings</h2>
-        <div class="setting">
-            <label for="particleCount">Particle Count:</label>
-            <input type="range" id="particleCount" min="1000" max="100000" step="1000" value="10000">
-            <span id="particleCountValue">10000</span>
-        </div>
-        <div class="setting">
-            <label for="theta">Theta (Accuracy):</label>
-            <input type="range" id="theta" min="0.1" max="2.0" step="0.1" value="0.8">
-            <span id="thetaValue">0.8</span>
-        </div>
-        <div class="setting">
-            <label for="epsilon">Epsilon (Softening):</label>
-            <input type="range" id="epsilon" min="0.1" max="10.0" step="0.1" value="1.0">
-            <span id="epsilonValue">1.0</span>
-        </div>
-        <div class="setting">
-            <label for="timeStep">Time Step:</label>
-            <input type="range" id="timeStep" min="0.01" max="0.2" step="0.01" value="0.05">
-            <span id="timeStepValue">0.05</span>
-        </div>
-        <div class="setting">
-            <input type="checkbox" id="showQuadtree" value="false">
-            <label for="showQuadtree">Show Quadtree</label>
-        </div>
-        <div class="setting">
-            <button id="applySettings">Apply</button>
-            <button id="closeSettings">Close</button>
-        </div>
-    </div>
-
-    <!-- Load our JavaScript modules -->
-    <script type="module" src="js/main.js"></script>
+    <script src="vector.js"></script>
+    <script src="body.js"></script>
+    <script src="quadtree.js"></script>
+    <script src="simulation.js"></script>
+    <script src="renderer.js"></script>
+    <script src="main.js"></script>
 </body>
 </html>
